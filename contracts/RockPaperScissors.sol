@@ -4,7 +4,10 @@ import "./SafeMath.sol";
 
 contract RockPaperScissors {
 
+    using SafeMath for uint;
+
     enum Hand { NONE, ROCK, PAPER, SCISSORS }
+    enum Outcome { NONE, PLAYER1WIN, PLAYER2WIN, DRAW }
 
     struct Game {
         // key: player1 + player1Move + nonce
@@ -28,11 +31,12 @@ contract RockPaperScissors {
     }
 
     function createGame(bytes32 hasedGameKey, uint deadlineJoinMaxBlock, uint deadlineRevealMaxBlock)
+        public
         payable
         returns (bool success) {
 
         require(msg.sender != 0);
-        Game newGame = games[hasedGameKey];
+        Game storage newGame = games[hasedGameKey];
         require(newGame.player1 == 0);
         assert(newGame.player2 == 0);
         assert(newGame.wager == 0);
@@ -48,10 +52,11 @@ contract RockPaperScissors {
     }
 
     function joinGame(bytes32 hasedGameKey, Hand player2Move)
+        public
         payable
         returns (bool success) {
 
-        Game thisGame = games[hasedGameKey];
+        Game storage thisGame = games[hasedGameKey];
         require(thisGame.player1 != 0);
         require(thisGame.wager == msg.value);
         require(block.number <= thisGame.deadlineJoin);
@@ -61,11 +66,12 @@ contract RockPaperScissors {
         return true;
     }
 
-    function revealGameResult(Hand player1Move, bytes32 nonce)
-        returns (string outcome) {
+    function revealGameResult(Hand player1Move, string nonce)
+        public
+        returns (Outcome outcome) {
 
         bytes32 hasedGameKey = hashGameKey(msg.sender, player1Move, nonce);
-        Game thisGame = games[hasedGameKey];
+        Game storage thisGame = games[hasedGameKey];
 
         require(thisGame.isExist);
         require(! thisGame.isClaimed);
@@ -75,39 +81,37 @@ contract RockPaperScissors {
 
         thisGame.player1Move = player1Move;
 
-        string outcome = rockPaperScissorsCheck(thisGame.player1Move, thisGame.player2Move);
+        outcome = rockPaperScissorsCheck(thisGame.player1Move, thisGame.player2Move);
 
         thisGame.isClaimed = true;
-        if (outcome == 'draw') {
+        if (outcome == Outcome.DRAW) {
             balances[thisGame.player1] = thisGame.wager;
             balances[thisGame.player2] = thisGame.wager;
-        } else if (outcome == 'player1_win') {
+        } else if (outcome == Outcome.PLAYER1WIN) {
             balances[thisGame.player1] = thisGame.wager.mul(2);
-        } else if (outcome == 'player2_win') {
+        } else if (outcome == Outcome.PLAYER2WIN) {
             balances[thisGame.player2] = thisGame.wager.mul(2);
         }
-
-        return outcome;
     }
 
     function rockPaperScissorsCheck(Hand player1Move, Hand player2Move)
-        view public
-        returns (string outcome) {
+        pure public
+        returns (Outcome outcome) {
 
         if (player1Move == player2Move) {
-            return 'draw';
+            return Outcome.DRAW;
         } else if (player1Move == Hand.ROCK && player2Move == Hand.PAPER) {
-            return 'player2_win';
+            return Outcome.PLAYER2WIN;
         } else if (player1Move == Hand.ROCK && player2Move == Hand.SCISSORS) {
-            return 'player1_win';
+            return Outcome.PLAYER1WIN;
         } else if (player1Move == Hand.PAPER && player2Move == Hand.ROCK) {
-            return 'player1_win';
+            return Outcome.PLAYER1WIN;
         } else if (player1Move == Hand.PAPER && player2Move == Hand.SCISSORS) {
-            return 'player2_win';
+            return Outcome.PLAYER2WIN;
         } else if (player1Move == Hand.SCISSORS && player2Move == Hand.ROCK) {
-            return 'player2_win';
+            return Outcome.PLAYER2WIN;
         } else if (player1Move == Hand.SCISSORS && player2Move == Hand.PAPER) {
-            return 'player1_win';
+            return Outcome.PLAYER1WIN;
         }
     }
 

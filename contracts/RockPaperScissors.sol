@@ -4,6 +4,7 @@ import "./SafeMath.sol";
 
 contract RockPaperScissors {
 
+    using SafeMath for uint256;
     using SafeMath for uint;
 
     enum Hand { NONE, ROCK, PAPER, SCISSORS }
@@ -58,6 +59,7 @@ contract RockPaperScissors {
 
         Game storage thisGame = games[hasedGameKey];
         require(thisGame.player1 != 0);
+        require(thisGame.player2 == 0);
         require(thisGame.wager == msg.value);
         require(block.number <= thisGame.deadlineJoin);
 
@@ -85,12 +87,12 @@ contract RockPaperScissors {
 
         thisGame.isClaimed = true;
         if (outcome == Outcome.DRAW) {
-            balances[thisGame.player1] = thisGame.wager;
-            balances[thisGame.player2] = thisGame.wager;
+            balances[thisGame.player1] = balances[thisGame.player1].add(thisGame.wager);
+            balances[thisGame.player2] = balances[thisGame.player2].add(thisGame.wager);
         } else if (outcome == Outcome.PLAYER1WIN) {
-            balances[thisGame.player1] = thisGame.wager.mul(2);
+            balances[thisGame.player1] = balances[thisGame.player1].add(thisGame.wager.mul(2));
         } else if (outcome == Outcome.PLAYER2WIN) {
-            balances[thisGame.player2] = thisGame.wager.mul(2);
+            balances[thisGame.player2] = balances[thisGame.player2].add(thisGame.wager.mul(2));
         }
     }
 
@@ -120,6 +122,39 @@ contract RockPaperScissors {
         view public
         returns(bytes32 hash) {
         return keccak256(abi.encodePacked(this, player1, player1Move, nonce));
+    }
+
+    function claimUnplayed(bytes32 hasedGameKey)
+        public
+        returns (bool success) {
+
+        Game storage thisGame = games[hasedGameKey];
+
+        require(thisGame.deadlineJoin < block.number);
+        require(thisGame.player2 == 0);
+
+        uint wager = thisGame.wager;
+        thisGame.wager = 0;
+        balances[thisGame.player1] = balances[thisGame.player1].add(wager);
+
+        return true;
+    }
+
+    function claimForfeited(bytes32 hasedGameKey)
+        public
+        returns (bool success) {
+
+        Game storage thisGame = games[hasedGameKey];
+
+        require(thisGame.deadlineReveal < block.number);
+        require(thisGame.player1Move == Hand.NONE);
+
+        uint wager = thisGame.wager;
+        thisGame.wager = 0;
+        balances[thisGame.player2] = balances[thisGame.player2].add(wager.mul(2));
+
+        return true;
+
     }
 
     function withdraw() public returns(bool isSuccess) {

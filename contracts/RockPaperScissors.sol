@@ -36,11 +36,11 @@ contract RockPaperScissors {
         payable
         returns (bool success) {
 
-        require(msg.sender != 0);
+        require(msg.sender != 0, "prevent address 0");
         Game storage newGame = games[hasedGameKey];
-        require(newGame.player1 == 0);
-        assert(newGame.player2 == 0);
-        assert(newGame.wager == 0);
+        require(newGame.player1 == 0, "prevent player1 exist");
+        require(newGame.player2 == 0, "prevent player2 exist");
+        require(newGame.wager == 0, "prevent wager exist");
 
         newGame.player1 = msg.sender;
         newGame.wager = msg.value;
@@ -58,10 +58,10 @@ contract RockPaperScissors {
         returns (bool success) {
 
         Game storage thisGame = games[hasedGameKey];
-        require(thisGame.player1 != 0);
-        require(thisGame.player2 == 0);
-        require(thisGame.wager == msg.value);
-        require(block.number <= thisGame.deadlineJoin);
+        require(thisGame.player1 != 0, "prevent player1 not exist");
+        require(thisGame.player2 == 0, "prevent player2 exist");
+        require(thisGame.wager == msg.value, "wager should be the same");
+        require(block.number <= thisGame.deadlineJoin, "should play in time");
 
         thisGame.player2 = msg.sender;
         thisGame.player2Move = player2Move;
@@ -75,10 +75,10 @@ contract RockPaperScissors {
         bytes32 hasedGameKey = hashGameKey(msg.sender, player1Move, nonce);
         Game storage thisGame = games[hasedGameKey];
 
-        require(thisGame.isExist);
-        require(! thisGame.isClaimed);
-        require(thisGame.player2Move != Hand.NONE);
-        require(thisGame.player1Move == Hand.NONE);
+        require(thisGame.isExist, "game should exist");
+        require(! thisGame.isClaimed, "wager should not claimed");
+        require(thisGame.player2Move != Hand.NONE, "player2 move should exist");
+        require(thisGame.player1Move == Hand.NONE, "player1 move should not exist");
         require(block.number <= thisGame.deadlineReveal);
 
         thisGame.player1Move = player1Move;
@@ -155,6 +155,10 @@ contract RockPaperScissors {
 
         return true;
 
+    }
+
+    function gameIsExist(bytes32 hasedGameKey) public view returns(bool isSuccess) {
+        return games[hasedGameKey].isExist;
     }
 
     function withdraw() public returns(bool isSuccess) {
